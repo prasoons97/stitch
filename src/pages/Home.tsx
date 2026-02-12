@@ -10,9 +10,11 @@ type Theme = 'light' | 'dark';
 function Home() {
   const [files, setFiles] = useState<UploadedPdfFile[]>([]);
   const [isMerging, setIsMerging] = useState(false);
+  const [mergeProgress, setMergeProgress] = useState(0);
   const [mergedPdfBytes, setMergedPdfBytes] = useState<Uint8Array | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem('theme') as Theme | null;
@@ -22,6 +24,18 @@ function Home() {
     setTheme(initialTheme);
     document.documentElement.classList.toggle('dark', initialTheme === 'dark');
   }, []);
+
+  useEffect(() => {
+    if (!successMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSuccessMessage(null);
+    }, 3200);
+
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   const selectedFileCountText = useMemo(() => {
     if (files.length === 0) {
@@ -45,6 +59,7 @@ function Home() {
 
   const handleFilesAdded = (incomingFiles: File[]) => {
     setErrorMessage(null);
+    setSuccessMessage(null);
     setMergedPdfBytes(null);
 
     const incoming = incomingFiles.map((file) => ({
@@ -58,6 +73,7 @@ function Home() {
   };
 
   const handleMoveFile = (id: string, direction: 'up' | 'down') => {
+    setSuccessMessage(null);
     setMergedPdfBytes(null);
     setFiles((previous) => {
       const index = previous.findIndex((item) => item.id === id);
@@ -79,6 +95,7 @@ function Home() {
   };
 
   const handleRemoveFile = (id: string) => {
+    setSuccessMessage(null);
     setMergedPdfBytes(null);
     setFiles((previous) => previous.filter((item) => item.id !== id));
   };
@@ -90,14 +107,35 @@ function Home() {
     }
 
     setIsMerging(true);
+    setMergeProgress(8);
     setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const startedAt = performance.now();
+    const minVisibleDurationMs = 900;
+    const progressTimer = window.setInterval(() => {
+      setMergeProgress((previous) => {
+        const increment = Math.floor(Math.random() * 12) + 5;
+        return Math.min(previous + increment, 92);
+      });
+    }, 150);
 
     try {
       const mergedBytes = await mergePdfFiles(files.map((item) => item.file));
       setMergedPdfBytes(mergedBytes);
+      setMergeProgress(100);
+      setSuccessMessage('Merged PDF is ready. You can download it now.');
     } catch {
       setErrorMessage('Unable to merge the selected PDFs. Please try a different file set.');
+      setMergeProgress(0);
     } finally {
+      window.clearInterval(progressTimer);
+      const elapsed = performance.now() - startedAt;
+      if (elapsed < minVisibleDurationMs) {
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, minVisibleDurationMs - elapsed)
+        );
+      }
       setIsMerging(false);
     }
   };
@@ -108,6 +146,7 @@ function Home() {
     }
 
     downloadMergedPdf(mergedPdfBytes, 'merged-document.pdf');
+    setSuccessMessage('Download started.');
   };
 
   return (
@@ -199,8 +238,28 @@ function Home() {
               </button>
             </div>
           </div>
+          {isMerging ? (
+            <div className="mt-4" role="status" aria-live="polite" aria-label="Merge in progress">
+              <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                <span>Merging in progress</span>
+                <span>{mergeProgress}%</span>
+              </div>
+              <div className="progress-track">
+                <div
+                  className="progress-bar"
+                  style={{ width: `${mergeProgress}%` }}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          ) : null}
         </section>
       </div>
+      {successMessage ? (
+        <div className="toast-success" role="status" aria-live="polite" aria-atomic="true">
+          {successMessage}
+        </div>
+      ) : null}
     </main>
   );
 }
