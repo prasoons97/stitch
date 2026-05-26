@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(open -a \"Google Chrome\" \"http://localhost:5173\")",
+      "Bash(open \"http://localhost:5173\")",
+      "Bash(screencapture -x /tmp/pdf-merger-screenshot.png)",
+      "Bash(screencapture /tmp/pdf-merger-screenshot.png)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --no-sandbox --screenshot=/tmp/app-screenshot.png --window-size=1280,900 http://localhost:5173)",
+      "Bash(echo \"exit: $?\")",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --no-sandbox --screenshot=/tmp/pdf-merger-dnd.png --window-size=1280,900 http://localhost:5173)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --no-sandbox --screenshot=/tmp/fix-queue.png --window-size=1280,900 http://localhost:5173)",
+      "Bash(npx tsc *)",
+      "Bash(git -C /Users/home/Documents/pdf-merger log --oneline)",
+      "Bash(git -C /Users/home/Documents/pdf-merger status)",
+      "Bash(npx --prefix /Users/home/Documents/pdf-merger tsc --noEmit)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless=new --disable-gpu --no-sandbox --screenshot=/tmp/stitch-preview.png --window-size=1440,960 http://localhost:5173)",
+      "Bash(git *)"
+    ]
+  }
+}

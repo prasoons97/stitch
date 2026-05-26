@@ -1,105 +1,46 @@
-# Browser PDF Merger (React + TypeScript + Vite)
+# Stitch
 
-A simple and privacy-friendly PDF merger web app. Users can upload multiple PDFs, reorder files, remove files, merge them in the browser using `pdf-lib`, and download the merged output.
+> Merge PDF files entirely in your browser — no server, no uploads, no tracking.
+
+**[Live Demo](#)** &nbsp;·&nbsp; React 18 &nbsp;·&nbsp; TypeScript &nbsp;·&nbsp; Vite &nbsp;·&nbsp; Tailwind CSS
+
+![Stitch app screenshot](./docs/preview.png)
+
+---
 
 ## Features
 
-- Upload/select multiple PDF files
-- View uploaded file name and file size
-- Reorder files with move up/down controls
-- Remove any file from the merge queue
-- Merge PDFs completely client-side with `pdf-lib`
-- Download merged PDF as `merged-document.pdf`
-- Loading state while merging
-- Responsive layout for mobile and desktop
-- Light and dark theme toggle
+- **Drag-and-drop upload** — drop files onto the zone or click to browse
+- **Mixed-file protection** — non-PDF files are discarded automatically with a warning toast
+- **Drag-to-reorder** — rearrange the merge queue by dragging; ↑ ↓ buttons available as a keyboard fallback
+- **Per-file preview** — open any uploaded PDF in a new tab before merging
+- **Inline result preview** — merged PDF renders in an iframe the moment processing completes
+- **Download merged output** — saved locally, never sent anywhere
+- **Light / dark theme** — follows system preference, persisted in `localStorage`
 
-## Tech Stack
+## Stack
 
-- React 18 + TypeScript
-- Vite
-- Tailwind CSS
-- pdf-lib
-- ESLint + Prettier
+| Concern | Choice |
+|---|---|
+| Framework | React 18 + TypeScript |
+| Build | Vite |
+| Styling | Tailwind CSS |
+| PDF processing | pdf-lib |
+| Drag and drop | Native HTML5 DnD API |
+| Linting / formatting | ESLint + Prettier |
 
-## Project Structure
+## Design decisions
 
-```text
-src/
-  components/
-    FileUploader.tsx
-    FileList.tsx
-    MergeButton.tsx
-  pages/
-    Home.tsx
-  styles/
-    tailwind.css
-  utils/
-    pdfUtils.ts
-  App.tsx
-  main.tsx
-```
+**No drag-and-drop library** — the native HTML5 Drag and Drop API handles list reordering without any dependencies. Libraries like `@dnd-kit` add weight and maintenance overhead for a problem the browser already solves natively.
 
-## Getting Started
+**No backend** — `pdf-lib` reads and merges files directly in the browser using `ArrayBuffer`. Zero infrastructure, zero latency, complete privacy.
 
-### 1. Install dependencies
+## Getting started
 
 ```bash
 npm install
-```
-
-### 2. Run in development
-
-```bash
-npm run dev
-```
-
-Open the local URL printed by Vite (usually `http://localhost:5173`).
-
-### 3. Build for production
-
-```bash
-npm run build
-```
-
-### 4. Preview production build
-
-```bash
-npm run preview
-```
-
-## How PDF Merging Works
-
-The app uses `pdf-lib` in `src/utils/pdfUtils.ts`:
-
-1. It creates a new empty PDF document.
-2. For each uploaded PDF file:
-   - Reads file bytes in the browser (`arrayBuffer()`)
-   - Loads source PDF with `PDFDocument.load(...)`
-   - Copies all pages from source to the new document
-3. Saves merged bytes with `mergedPdf.save()`
-4. Creates a Blob URL and triggers download in the browser
-
-No backend is used. Files are never uploaded to a server.
-
-## UI Overview
-
-- Header includes app title, privacy summary, and theme toggle.
-- Upload section provides a file picker limited to `.pdf` files.
-- File list shows selected files with size and reorder/remove actions.
-- Merge button starts processing and shows a loading label.
-- Error message appears if merge fails.
-
-## Quality Tooling
-
-- Run lint:
-
-```bash
-npm run lint
-```
-
-- Run formatter:
-
-```bash
-npm run format
+npm run dev        # http://localhost:5173
+npm run build      # production build
+npm run lint       # ESLint
+npm run format     # Prettier
 ```

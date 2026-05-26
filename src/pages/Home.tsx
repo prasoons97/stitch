@@ -12,92 +12,107 @@ function Home() {
   const [isMerging, setIsMerging] = useState(false);
   const [mergeProgress, setMergeProgress] = useState(0);
   const [mergedPdfBytes, setMergedPdfBytes] = useState<Uint8Array | null>(null);
+  const [mergedPdfUrl, setMergedPdfUrl] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [warnMessage, setWarnMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem('theme') as Theme | null;
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialTheme = savedTheme ?? (prefersDark ? 'dark' : 'light');
-
     setTheme(initialTheme);
     document.documentElement.classList.toggle('dark', initialTheme === 'dark');
   }, []);
 
   useEffect(() => {
-    if (!successMessage) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setSuccessMessage(null);
-    }, 3200);
-
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 3200);
     return () => window.clearTimeout(timer);
   }, [successMessage]);
 
+  useEffect(() => {
+    if (!warnMessage) return;
+    const timer = window.setTimeout(() => setWarnMessage(null), 3500);
+    return () => window.clearTimeout(timer);
+  }, [warnMessage]);
+
+  // Revoke the previous blob URL whenever it changes or the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (mergedPdfUrl) URL.revokeObjectURL(mergedPdfUrl);
+    };
+  }, [mergedPdfUrl]);
+
   const selectedFileCountText = useMemo(() => {
-    if (files.length === 0) {
-      return 'No files selected';
-    }
-
-    if (files.length === 1) {
-      return '1 file selected';
-    }
-
+    if (files.length === 0) return 'No files selected';
+    if (files.length === 1) return '1 file selected';
     return `${files.length} files selected`;
   }, [files.length]);
 
   const handleThemeToggle = () => {
     const nextTheme: Theme = theme === 'light' ? 'dark' : 'light';
-
     setTheme(nextTheme);
     document.documentElement.classList.toggle('dark', nextTheme === 'dark');
     window.localStorage.setItem('theme', nextTheme);
   };
 
+  const clearResult = () => {
+    setMergedPdfBytes(null);
+    setMergedPdfUrl(null);
+  };
+
+  const handleFilesRejected = (count: number, allRejected: boolean) => {
+    const label = count === 1 ? '1 file' : `${count} files`;
+    if (allRejected) {
+      setWarnMessage(`${label} dropped — only PDFs are supported. Nothing was added.`);
+    } else {
+      setWarnMessage(`${label} skipped (not a PDF). Only the PDF files were added.`);
+    }
+  };
+
   const handleFilesAdded = (incomingFiles: File[]) => {
     setErrorMessage(null);
     setSuccessMessage(null);
-    setMergedPdfBytes(null);
-
+    clearResult();
     const incoming = incomingFiles.map((file) => ({
       id: crypto.randomUUID(),
       file,
       name: file.name,
-      size: file.size
+      size: file.size,
     }));
-
     setFiles((previous) => [...previous, ...incoming]);
   };
 
   const handleMoveFile = (id: string, direction: 'up' | 'down') => {
     setSuccessMessage(null);
-    setMergedPdfBytes(null);
+    clearResult();
     setFiles((previous) => {
       const index = previous.findIndex((item) => item.id === id);
-      if (index === -1) {
-        return previous;
-      }
-
+      if (index === -1) return previous;
       const nextIndex = direction === 'up' ? index - 1 : index + 1;
-      if (nextIndex < 0 || nextIndex >= previous.length) {
-        return previous;
-      }
-
+      if (nextIndex < 0 || nextIndex >= previous.length) return previous;
       const reordered = [...previous];
       const [moved] = reordered.splice(index, 1);
       reordered.splice(nextIndex, 0, moved);
-
       return reordered;
     });
   };
 
   const handleRemoveFile = (id: string) => {
     setSuccessMessage(null);
-    setMergedPdfBytes(null);
+    clearResult();
     setFiles((previous) => previous.filter((item) => item.id !== id));
+  };
+
+  const handleReorder = (newOrder: string[]) => {
+    setSuccessMessage(null);
+    clearResult();
+    setFiles((previous) => {
+      const map = new Map(previous.map((f) => [f.id, f]));
+      return newOrder.map((id) => map.get(id)!);
+    });
   };
 
   const handleMerge = async () => {
@@ -110,6 +125,7 @@ function Home() {
     setMergeProgress(8);
     setErrorMessage(null);
     setSuccessMessage(null);
+    clearResult();
 
     const startedAt = performance.now();
     const minVisibleDurationMs = 900;
@@ -122,9 +138,10 @@ function Home() {
 
     try {
       const mergedBytes = await mergePdfFiles(files.map((item) => item.file));
+      const url = URL.createObjectURL(new Blob([mergedBytes], { type: 'application/pdf' }));
       setMergedPdfBytes(mergedBytes);
+      setMergedPdfUrl(url);
       setMergeProgress(100);
-      setSuccessMessage('Merged PDF is ready. You can download it now.');
     } catch {
       setErrorMessage('Unable to merge the selected PDFs. Please try a different file set.');
       setMergeProgress(0);
@@ -141,13 +158,20 @@ function Home() {
   };
 
   const handleDownloadMergedPdf = () => {
-    if (!mergedPdfBytes) {
-      return;
-    }
-
+    if (!mergedPdfBytes) return;
     downloadMergedPdf(mergedPdfBytes, 'merged-document.pdf');
     setSuccessMessage('Download started.');
   };
+
+  const handleStartOver = () => {
+    setFiles([]);
+    clearResult();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setMergeProgress(0);
+  };
+
+  const showResult = Boolean(mergedPdfUrl && !isMerging);
 
   return (
     <main className="page-bg relative min-h-screen overflow-hidden px-4 py-8 text-zinc-900 dark:text-zinc-100">
@@ -164,7 +188,7 @@ function Home() {
         <header className="glass-panel animate-rise p-6 sm:p-7">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="rounded-full border border-brand-300/70 bg-brand-100/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-800 dark:border-brand-500/60 dark:bg-brand-800/40 dark:text-brand-100">
-              Browser-Only PDF Merge
+              Stitch
             </span>
             <button
               type="button"
@@ -199,14 +223,22 @@ function Home() {
           </div>
         </header>
 
-        <FileUploader onFilesAdded={handleFilesAdded} />
+        <FileUploader onFilesAdded={handleFilesAdded} onFilesRejected={handleFilesRejected} />
 
-        <FileList
-          files={files}
-          onMoveUp={(id) => handleMoveFile(id, 'up')}
-          onMoveDown={(id) => handleMoveFile(id, 'down')}
-          onRemove={handleRemoveFile}
-        />
+        {/* Queue — dimmed while merging, hidden once result is ready */}
+        {!showResult && (
+          <div
+            className={`transition-opacity duration-300 ${isMerging ? 'pointer-events-none opacity-40' : 'opacity-100'}`}
+          >
+            <FileList
+              files={files}
+              onMoveUp={(id) => handleMoveFile(id, 'up')}
+              onMoveDown={(id) => handleMoveFile(id, 'down')}
+              onRemove={handleRemoveFile}
+              onReorder={handleReorder}
+            />
+          </div>
+        )}
 
         {errorMessage ? (
           <p
@@ -217,47 +249,85 @@ function Home() {
           </p>
         ) : null}
 
-        <section className="glass-panel animate-rise p-4 sm:p-5" aria-label="Merge controls">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              Finalize your queue and generate one merged PDF document.
-            </p>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+        {/* Merge controls — hidden once result is ready */}
+        {!showResult && (
+          <section className="glass-panel animate-rise p-4 sm:p-5" aria-label="Merge controls">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                Finalize your queue and generate one merged PDF document.
+              </p>
               <MergeButton
                 disabled={files.length === 0}
                 loading={isMerging}
                 onMerge={handleMerge}
               />
-              <button
-                type="button"
-                onClick={handleDownloadMergedPdf}
-                disabled={!mergedPdfBytes || isMerging}
-                className="button-secondary w-full sm:w-auto"
-              >
-                Download Merged PDF
-              </button>
             </div>
-          </div>
-          {isMerging ? (
-            <div className="mt-4" role="status" aria-live="polite" aria-label="Merge in progress">
-              <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
-                <span>Merging in progress</span>
-                <span>{mergeProgress}%</span>
+            {isMerging ? (
+              <div className="mt-4" role="status" aria-live="polite" aria-label="Merge in progress">
+                <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                  <span>Merging in progress</span>
+                  <span>{mergeProgress}%</span>
+                </div>
+                <div className="progress-track">
+                  <div
+                    className="progress-bar"
+                    style={{ width: `${mergeProgress}%` }}
+                    aria-hidden="true"
+                  />
+                </div>
               </div>
-              <div className="progress-track">
-                <div
-                  className="progress-bar"
-                  style={{ width: `${mergeProgress}%` }}
-                  aria-hidden="true"
-                />
+            ) : null}
+          </section>
+        )}
+
+        {/* Result section — replaces queue + controls after a successful merge */}
+        {showResult && mergedPdfUrl ? (
+          <section className="glass-panel animate-rise p-5 sm:p-6" aria-label="Merge result">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">
+                  Merge Complete
+                </h2>
+                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                  {files.length} {files.length === 1 ? 'PDF' : 'PDFs'} merged · Preview below
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadMergedPdf}
+                  className="button-primary"
+                >
+                  Download PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartOver}
+                  className="button-secondary"
+                >
+                  Start Over
+                </button>
               </div>
             </div>
-          ) : null}
-        </section>
+
+            <iframe
+              src={mergedPdfUrl}
+              title="Merged PDF preview"
+              className="h-[560px] w-full rounded-xl border border-zinc-200/90 dark:border-zinc-700"
+            />
+          </section>
+        ) : null}
       </div>
+
       {successMessage ? (
         <div className="toast-success" role="status" aria-live="polite" aria-atomic="true">
           {successMessage}
+        </div>
+      ) : null}
+
+      {warnMessage ? (
+        <div className="toast-warning" role="alert" aria-live="assertive" aria-atomic="true">
+          {warnMessage}
         </div>
       ) : null}
     </main>
