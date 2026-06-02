@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/filelist.tsx","./src/components/fileuploader.tsx","./src/components/mergebutton.tsx","./src/pages/home.tsx","./src/utils/pdfutils.ts"],"version":"5.6.3"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/FileList.tsx","./src/components/FileUploader.tsx","./src/components/MergeButton.tsx","./src/pages/Home.tsx","./src/utils/pdfUtils.ts"],"version":"5.6.3"}
